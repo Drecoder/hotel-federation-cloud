@@ -2,11 +2,15 @@ name: "Infrastructure CI/CD"
 
 on:
   push:
-    branches: [ main ]
-    paths: [ 'infrastructure/**' ]
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
   pull_request:
-    branches: [ main ]
-    paths: [ 'infrastructure/**' ]
+    branches:
+      - main
+    paths:
+      - 'infrastructure/**'
 
 jobs:
   terraform:
@@ -41,9 +45,9 @@ jobs:
         with:
           directory: ${{ env.WORKING_DIR }}
           framework: terraform
-          soft_fail: false # Set to true if you don't want to block the build, but false is more "Senior"
+          soft_fail: false 
           output_format: cli
-          quiet: true # Only show failed checks to keep logs clean
+          quiet: true 
 
       - name: Terraform Plan
         id: plan
