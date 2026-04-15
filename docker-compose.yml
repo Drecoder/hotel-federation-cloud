@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  router:
+    # Rule 1: Always pin your versions. "latest" is a moving target that breaks CI/CD.
+    image: ghcr.io/apollographql/router:v1.38.0
+    container_name: hotel-router
+    # Rule 2: Least Privilege. Only expose the Gateway to the host, not the internal subgraphs.
+    ports:
+      - "127.0.0.1:4000:4000" 
+    volumes:
+      - ./services/router/router-config.yaml:/dist/config/router.yaml:ro # Read-only mount
+      - ./services/router/supergraph.graphql:/dist/schema/supergraph.graphql:ro
+    command: ["--config", "/dist/config/router.yaml", "--supergraph", "/dist/schema/supergraph.graphql"]
+    depends_on:
+      - booking-subgraph
+      - inventory-subgraph
+    networks:
+      - hotel-mesh
+
+  booking-subgraph:
+    build:
+      context: ./services/booking-subgraph
+    container_name: booking-service
+    # No host ports exposed. Communication happens purely over the internal network.
+    environment:
+      # Rule 3: Use Docker Secrets or environment variables from a .env file (not hardcoded)
+      - DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/${DB_NAME}
+      - KAFKA_BROKER=kafka:9092
+    depends_on:
+      - postgres
+      - kafka
+    networks:
+      - hotel-mesh
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0 # Specific version
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Rule 4: Disable Plaintext for external traffic if this were a public node.
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - hotel-mesh
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: hotel-db
+    environment:
+      # Rule 5: Never hardcode credentials.
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    # Do not expose 5432 to the host unless you need to debug locally.
+    networks:
+      - hotel-mesh
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+# Rule 6: Isolated Network Bridge (Prevents containers from seeing other local traffic)
+networks:
+  hotel-mesh:
+    driver: bridge
+
+volumes:
+  postgres_data:
