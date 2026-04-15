@@ -2,15 +2,11 @@ name: "Infrastructure CI/CD"
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - 'infrastructure/**'
+    branches: [ main ]
+    paths: [ 'infrastructure/**' ]
   pull_request:
-    branches:
-      - main
-    paths:
-      - 'infrastructure/**'
+    branches: [ main ]
+    paths: [ 'infrastructure/**' ]
 
 jobs:
   terraform:
@@ -38,6 +34,17 @@ jobs:
         run: terraform init
         working-directory: ${{ env.WORKING_DIR }}
 
+      # --- THE SECURITY GATE ---
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ${{ env.WORKING_DIR }}
+          framework: terraform
+          soft_fail: false # Set to true if you don't want to block the build, but false is more "Senior"
+          output_format: cli
+          quiet: true # Only show failed checks to keep logs clean
+
       - name: Terraform Plan
         id: plan
         run: terraform plan -no-color
@@ -50,9 +57,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.plan.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.plan.outcome }}\`
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            const output = `#### Terraform Format and Style 🖌 \`${{ steps.plan.outcome }}\`
+            #### Terraform Initialization ⚙️ \`${{ steps.plan.outcome }}\`
+            #### Checkov Security Scan 🛡️ \`${{ steps.checkov.outcome }}\`
+            #### Terraform Plan 📖 \`${{ steps.plan.outcome }}\`
             
             <details><summary>Show Plan</summary>
             

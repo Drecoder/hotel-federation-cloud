@@ -66,6 +66,13 @@ graph TD
     style Client fill:#43aa8b,stroke:#333,stroke-width:2px,color:#fff
 ```
 
+## Architecture Overview (3-Layer Cloud-Native Design)
+
+- **Layer 1 (Edge & Networking)** – ALB/API Gateway + Apollo Router (Rust) handles HTTPS termination, HTTP/2 routing, and federated query planning
+- **Layer 2 (Business Services)** – Inventory & Booking subgraphs (NestJS + GraphQL) execute business logic, validation, and federation entity resolution on ECS Fargate
+- **Layer 3 (Data Persistence)** – PostgreSQL RDS (Multi-AZ) for primary state, DynamoDB for booking consistency/locking, ElastiCache Redis for caching & rate limiting
+- **CI/CD** – GitHub Actions pushes images and applies Terraform changes across all three layers with state locked in S3 + DynamoDB
+
 Every network component is version-controlled and deployed via automated CI/CD.
 
 * **Gateway:** Apollo Router (Rust-based) orchestrating a distributed subgraph mesh.
